@@ -216,3 +216,19 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Ignore large raw datasets
+data/raw/
+data/processed/*.csv
+
+# Ignore environment
+venv/
+.env
+
+# Ignore cache
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# Ignore model files (optional)
+*.pkl
