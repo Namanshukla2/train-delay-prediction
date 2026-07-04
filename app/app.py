@@ -864,136 +864,115 @@ elif page == "🗺️ Live Tracker":
             f"Currently at: **{current_station_name}** (`{current_station_code}`)"
         )
 
-        # ---------- Build Timeline HTML ----------
+               # ---------- Build HALT-ONLY Timeline HTML ----------
+
+        # Filter only halt stations
+        halt_stations = [
+            s for s in route
+            if s.get("isHalt", False) is True
+        ]
 
         stations_html = ""
 
-        for idx, station in enumerate(route):
+        for idx, station in enumerate(halt_stations):
             seq = station.get("sequence", idx + 1)
             code = station.get("stationCode", "")
             full_name = station.get("stationName", "")
 
-            # Truncate long names for timeline
-            display_name = full_name if len(full_name) <= 15 else full_name[:13] + ".."
+            # Truncate long names
+            display_name = full_name if len(full_name) <= 16 else full_name[:14] + ".."
 
-            if seq < current_seq:
-                delay = station.get("delayArrival") or station.get("delayDeparture") or 0
-                dot_bg = "#27AE60"
-                dot_border = "#229954"
-                icon = "✓"
-                delay_text = f"+{delay}m" if delay > 0 else "OT"
-                animation = ""
-                shadow = ""
-            elif seq == current_seq:
-                dot_bg = "#E74C3C"
-                dot_border = "#C0392B"
-                icon = "🚂"
-                delay_text = f"+{current_delay}m"
-                animation = "animation: pulse 1.5s infinite;"
-                shadow = "box-shadow: 0 0 20px rgba(231, 76, 60, 0.6);"
+            # Get delay
+            delay = (
+                station.get("delayArrival")
+                or station.get("delayDeparture")
+                or 0
+            )
+
+            # ---------- COLOR LOGIC ----------
+            if delay <= 9:
+                dot_color = "#27AE60"   # Green
+                delay_text = "On Time"
+            elif delay <= 24:
+                dot_color = "#F1C40F"   # Yellow
+                delay_text = f"+{delay}m"
             else:
-                dot_bg = "#34495E"
-                dot_border = "#2C3E50"
-                icon = str(seq)
-                delay_text = ""
-                animation = ""
-                shadow = ""
+                dot_color = "#E74C3C"   # Red
+                delay_text = f"+{delay}m"
+
+            # Override for current station
+            if seq == current_seq:
+                dot_color = "#2980B9"
+                delay_text = f"Now • {current_delay}m"
 
             stations_html += f"""
                 <div style="
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    min-width: 100px;
-                    margin: 0 8px;
-                    text-align: center;
+                    display:flex;
+                    flex-direction:column;
+                    align-items:center;
+                    min-width:130px;
+                    margin:0 12px;
+                    text-align:center;
                 ">
                     <div style="
-                        width: 32px;
-                        height: 32px;
-                        border-radius: 50%;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        font-size: 14px;
-                        font-weight: bold;
-                        margin-bottom: 8px;
-                        border: 3px solid {dot_border};
-                        background: {dot_bg};
-                        color: white;
-                        {animation}
-                        {shadow}
-                    ">{icon}</div>
+                        width:36px;
+                        height:36px;
+                        border-radius:50%;
+                        background:{dot_color};
+                        display:flex;
+                        align-items:center;
+                        justify-content:center;
+                        color:white;
+                        font-weight:bold;
+                        font-size:14px;
+                        margin-bottom:8px;
+                    ">
+                        {idx+1}
+                    </div>
+
                     <div style="
-                        font-size: 11px;
-                        color: white;
-                        font-weight: 600;
-                        line-height: 1.2;
-                        max-width: 90px;
-                        word-wrap: break-word;
-                    " title="{full_name}">{display_name}</div>
+                        font-size:13px;
+                        font-weight:600;
+                        line-height:1.2;
+                    ">
+                        {display_name}
+                    </div>
+
                     <div style="
-                        font-size: 9px;
-                        color: #95A5A6;
-                        margin-top: 3px;
-                        font-family: monospace;
-                    ">({code})</div>
+                        font-size:11px;
+                        color:#95A5A6;
+                        margin-top:2px;
+                    ">
+                        ({code})
+                    </div>
+
                     <div style="
-                        font-size: 10px;
-                        color: #F39C12;
-                        margin-top: 3px;
-                        font-weight: bold;
-                    ">{delay_text}</div>
+                        font-size:11px;
+                        margin-top:4px;
+                        font-weight:bold;
+                        color:{dot_color};
+                    ">
+                        {delay_text}
+                    </div>
                 </div>
             """
 
         complete_html = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <style>
-                * {{ box-sizing: border-box; }}
-                body {{ margin: 0; padding: 0; font-family: Arial, sans-serif; }}
-                .timeline-wrapper {{
-                    display: flex;
-                    justify-content: flex-start;
-                    align-items: center;
-                    padding: 20px 10px;
-                    overflow-x: auto;
-                    background: linear-gradient(90deg, #1e1e2e 0%, #2d2d44 100%);
-                    border-radius: 10px;
-                    white-space: nowrap;
-                }}
-                @keyframes pulse {{
-                    0% {{ transform: scale(1); }}
-                    50% {{ transform: scale(1.15); }}
-                    100% {{ transform: scale(1); }}
-                }}
-                .timeline-wrapper::-webkit-scrollbar {{
-                    height: 8px;
-                }}
-                .timeline-wrapper::-webkit-scrollbar-track {{
-                    background: #1e1e2e;
-                    border-radius: 4px;
-                }}
-                .timeline-wrapper::-webkit-scrollbar-thumb {{
-                    background: #E74C3C;
-                    border-radius: 4px;
-                }}
-            </style>
-        </head>
-        <body>
-            <div class="timeline-wrapper">
-                {stations_html}
-            </div>
-        </body>
-        </html>
+        <div style="
+            display:flex;
+            overflow-x:auto;
+            padding:20px;
+            background:linear-gradient(90deg,#1e1e2e,#2d2d44);
+            border-radius:12px;
+        ">
+            {stations_html}
+        </div>
         """
 
-        components.html(complete_html, height=180, scrolling=True)
+        components.html(complete_html, height=200, scrolling=True)
 
         st.markdown("---")
-
+        
         # ---------- Detailed Station List (Optimized) ----------
 
         st.markdown("### 📋 Station-wise Details")
