@@ -11,7 +11,7 @@ __pycache__/
 # Data (large files)
 data/raw/
 data/processed/*.csv
-
+!data/processed/dashboard_sample.csv
 # Notebooks
 .ipynb_checkpoints/
 
