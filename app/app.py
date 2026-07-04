@@ -863,76 +863,154 @@ elif page == "🗺️ Live Tracker":
             f"({current_seq} of {total_stations} stations) • "
             f"Currently at: **{current_station_name}** (`{current_station_code}`)"
         )
+                # ---------- Build HALT-ONLY Beautiful Timeline ----------
 
-               # ---------- Build HALT-ONLY Timeline HTML ----------
-
-        # Filter only halt stations
+        # Filter halt stations only
         halt_stations = [
             s for s in route
             if s.get("isHalt", False) is True
         ]
 
+        total_halts = len(halt_stations)
+
+        # ---------- Smart Current Halt Detection ----------
+        current_halt_index = 0
+        current_station_code = train_data.get("current_station_code", "")
+
+        # Priority 1: Match by station code (most reliable)
+        code_match_found = False
+        if current_station_code:
+            for i, s in enumerate(halt_stations):
+                if s.get("stationCode") == current_station_code:
+                    current_halt_index = i
+                    code_match_found = True
+                    break
+
+        # Priority 2: If code not in halt list, find nearest halt by sequence
+        if not code_match_found:
+            for i, s in enumerate(halt_stations):
+                if s.get("sequence") <= current_seq:
+                    current_halt_index = i
+                if s.get("sequence") > current_seq:
+                    break
+
+        # ---------- Progress Calculation ----------
+        progress_pct = (
+            (current_halt_index + 1) / total_halts
+            if total_halts > 0 else 0
+        )
+
+        st.markdown("### 🛤️ Journey Progress")
+        st.progress(progress_pct)
+        
+        # Get current halt name
+        current_halt_name = halt_stations[current_halt_index].get("stationName", "") if halt_stations else ""
+        current_halt_code = halt_stations[current_halt_index].get("stationCode", "") if halt_stations else ""
+        
+        st.caption(
+            f"🚂 **{int(progress_pct * 100)}%** completed "
+            f"({current_halt_index + 1} of {total_halts} halts) • "
+            f"Currently at: **{current_halt_name}** (`{current_halt_code}`)"
+        )
+
+        # ---------- Timeline UI ----------
+
         stations_html = ""
 
         for idx, station in enumerate(halt_stations):
-            seq = station.get("sequence", idx + 1)
             code = station.get("stationCode", "")
             full_name = station.get("stationName", "")
 
-            # Truncate long names
-            display_name = full_name if len(full_name) <= 16 else full_name[:14] + ".."
+            display_name = full_name if len(full_name) <= 18 else full_name[:16] + ".."
 
-            # Get delay
             delay = (
                 station.get("delayArrival")
                 or station.get("delayDeparture")
                 or 0
             )
 
-            # ---------- COLOR LOGIC ----------
-            if delay <= 9:
-                dot_color = "#27AE60"   # Green
-                delay_text = "On Time"
-            elif delay <= 24:
-                dot_color = "#F1C40F"   # Yellow
-                delay_text = f"+{delay}m"
-            else:
-                dot_color = "#E74C3C"   # Red
-                delay_text = f"+{delay}m"
+            # Status classification
+            is_passed = idx < current_halt_index
+            is_current = idx == current_halt_index
+            is_upcoming = idx > current_halt_index
 
-            # Override for current station
-            if seq == current_seq:
+            # ---------- COLOR + ICON LOGIC ----------
+            if is_current:
                 dot_color = "#2980B9"
-                delay_text = f"Now • {current_delay}m"
+                text_color = "#ffffff"
+                icon = "🚂"
+                delay_text = f"Now • +{current_delay}m" if current_delay else "Now"
+                border = "4px solid #E74C3C"
+                shadow = "box-shadow: 0 0 25px rgba(231,76,60,0.9);"
+                animation = "animation: pulse 1.2s infinite;"
+                dot_size = "55px"
+                icon_size = "24px"
+
+            elif is_passed:
+                if delay <= 9:
+                    dot_color = "#27AE60"
+                    text_color = "#27AE60"
+                    icon = "✓"
+                    delay_text = "On Time"
+                elif delay <= 24:
+                    dot_color = "#F1C40F"
+                    text_color = "#F1C40F"
+                    icon = "✓"
+                    delay_text = f"+{delay}m"
+                else:
+                    dot_color = "#E74C3C"
+                    text_color = "#E74C3C"
+                    icon = "✓"
+                    delay_text = f"+{delay}m"
+                border = "3px solid #1c1c1c"
+                shadow = ""
+                animation = ""
+                dot_size = "42px"
+                icon_size = "16px"
+
+            else:  # upcoming
+                dot_color = "#4B4B6B"
+                text_color = "#95A5A6"
+                icon = str(idx + 1)
+                delay_text = "Upcoming"
+                border = "2px dashed #7f8c8d"
+                shadow = ""
+                animation = ""
+                dot_size = "42px"
+                icon_size = "14px"
 
             stations_html += f"""
                 <div style="
                     display:flex;
                     flex-direction:column;
                     align-items:center;
-                    min-width:130px;
-                    margin:0 12px;
+                    min-width:150px;
+                    margin:0 15px;
                     text-align:center;
                 ">
                     <div style="
-                        width:36px;
-                        height:36px;
+                        width:{dot_size};
+                        height:{dot_size};
                         border-radius:50%;
                         background:{dot_color};
+                        {border}
+                        {shadow}
+                        {animation}
                         display:flex;
                         align-items:center;
                         justify-content:center;
                         color:white;
                         font-weight:bold;
-                        font-size:14px;
-                        margin-bottom:8px;
+                        font-size:{icon_size};
+                        margin-bottom:10px;
                     ">
-                        {idx+1}
+                        {icon}
                     </div>
 
                     <div style="
-                        font-size:13px;
-                        font-weight:600;
+                        font-size:14px;
+                        font-weight:{"700" if is_current else "500"};
+                        color:{text_color};
                         line-height:1.2;
                     ">
                         {display_name}
@@ -947,32 +1025,73 @@ elif page == "🗺️ Live Tracker":
                     </div>
 
                     <div style="
-                        font-size:11px;
-                        margin-top:4px;
+                        font-size:12px;
+                        margin-top:6px;
                         font-weight:bold;
-                        color:{dot_color};
+                        color:{text_color};
                     ">
                         {delay_text}
                     </div>
                 </div>
             """
 
+        # HTML container with auto-scroll
         complete_html = f"""
-        <div style="
+        <div id="timeline-container" style="
             display:flex;
             overflow-x:auto;
-            padding:20px;
+            padding:25px 15px;
             background:linear-gradient(90deg,#1e1e2e,#2d2d44);
-            border-radius:12px;
+            border-radius:14px;
+            scroll-behavior:smooth;
         ">
             {stations_html}
         </div>
+
+        <style>
+        @keyframes pulse {{
+            0% {{ transform: scale(1); }}
+            50% {{ transform: scale(1.15); }}
+            100% {{ transform: scale(1); }}
+        }}
+
+        #timeline-container::-webkit-scrollbar {{
+            height:8px;
+        }}
+        #timeline-container::-webkit-scrollbar-track {{
+            background:#1e1e2e;
+        }}
+        #timeline-container::-webkit-scrollbar-thumb {{
+            background:#E74C3C;
+            border-radius:4px;
+        }}
+        </style>
+
+        <script>
+            setTimeout(function() {{
+                const container = document.getElementById('timeline-container');
+                if (container) {{
+                    const items = container.children;
+                    if (items.length > {current_halt_index}) {{
+                        const targetItem = items[{current_halt_index}];
+                        const containerWidth = container.offsetWidth;
+                        const itemLeft = targetItem.offsetLeft;
+                        const itemWidth = targetItem.offsetWidth;
+                        const scrollTo = itemLeft - (containerWidth / 2) + (itemWidth / 2);
+                        container.scrollTo({{
+                            left: scrollTo,
+                            behavior: 'smooth'
+                        }});
+                    }}
+                }}
+            }}, 500);
+        </script>
         """
 
-        components.html(complete_html, height=200, scrolling=True)
+        components.html(complete_html, height=280, scrolling=True)
 
         st.markdown("---")
-        
+
         # ---------- Detailed Station List (Optimized) ----------
 
         st.markdown("### 📋 Station-wise Details")
@@ -1169,9 +1288,181 @@ elif page == "🗺️ Live Tracker":
         st.info("💡 **Tip:** Click 'Track Live' again to refresh data.")
 
 # ==========================================
-# PAGE 5 — DATA EXPLORER (Placeholder)
+# PAGE 5 — DATA EXPLORER
 # ==========================================
 
 elif page == "📋 Data Explorer":
-    st.title("📋 Data Explorer")
-    st.info("🚧 Coming Soon — Raw data browser with filters.")
+
+    st.title("📋 Railway Data Explorer")
+    st.write(
+        "🔍 Browse, filter, and download real Indian Railways delay data "
+        "from our sample of **100,000 records**."
+    )
+    st.markdown("---")
+
+    # ---------- Load Data (Cached) ----------
+
+    @st.cache_data
+    def load_explorer_data():
+        path = os.path.join(BASE_DIR, "data", "processed", "dashboard_sample.csv")
+        return pd.read_csv(path)
+
+    import pandas as pd
+
+    with st.spinner("📂 Loading dataset..."):
+        df = load_explorer_data()
+
+    # ---------- Sidebar-like Filters ----------
+
+    st.markdown("### 🎛️ Filters")
+
+    filter_col1, filter_col2, filter_col3, filter_col4 = st.columns(4)
+
+    with filter_col1:
+        zones = ["All"] + sorted(df["zone_full_name"].dropna().unique().tolist())
+        selected_zone = st.selectbox("🌐 Railway Zone", zones)
+
+    with filter_col2:
+        types = ["All"] + sorted(df["type_code"].dropna().unique().tolist())
+        selected_type = st.selectbox("🚄 Train Type", types)
+
+    with filter_col3:
+        months = ["All"] + list(range(1, 13))
+        selected_month = st.selectbox("📅 Month", months)
+
+    with filter_col4:
+        delay_range = st.selectbox(
+            "⏱️ Delay Range",
+            ["All", "On Time (0-9 min)", "Minor (10-30 min)",
+             "Major (30-60 min)", "Severe (60+ min)"]
+        )
+
+    # ---------- Search ----------
+
+    st.markdown("### 🔎 Search")
+
+    search_col1, search_col2 = st.columns(2)
+
+    with search_col1:
+        train_search = st.text_input(
+            "🚆 Search Train (name or number)",
+            placeholder="e.g. Rajdhani, 12951"
+        )
+
+    with search_col2:
+        station_search = st.text_input(
+            "📍 Search Station (name or code)",
+            placeholder="e.g. Delhi, NDLS"
+        )
+
+    st.markdown("---")
+
+    # ---------- Apply Filters ----------
+
+    filtered_df = df.copy()
+
+    if selected_zone != "All":
+        filtered_df = filtered_df[filtered_df["zone_full_name"] == selected_zone]
+
+    if selected_type != "All":
+        filtered_df = filtered_df[filtered_df["type_code"] == selected_type]
+
+    if selected_month != "All":
+        filtered_df = filtered_df[filtered_df["month"] == int(selected_month)]
+
+    if delay_range == "On Time (0-9 min)":
+        filtered_df = filtered_df[(filtered_df["delay"] >= 0) & (filtered_df["delay"] <= 9)]
+    elif delay_range == "Minor (10-30 min)":
+        filtered_df = filtered_df[(filtered_df["delay"] > 9) & (filtered_df["delay"] <= 30)]
+    elif delay_range == "Major (30-60 min)":
+        filtered_df = filtered_df[(filtered_df["delay"] > 30) & (filtered_df["delay"] <= 60)]
+    elif delay_range == "Severe (60+ min)":
+        filtered_df = filtered_df[filtered_df["delay"] > 60]
+
+    if train_search:
+        train_search = train_search.lower()
+        filtered_df = filtered_df[
+            filtered_df["train_name"].astype(str).str.lower().str.contains(train_search, na=False)
+            | filtered_df["train_no"].astype(str).str.contains(train_search, na=False)
+        ]
+
+    if station_search:
+        station_search = station_search.lower()
+        filtered_df = filtered_df[
+            filtered_df["station_full_name"].astype(str).str.lower().str.contains(station_search, na=False)
+            | filtered_df["station_name"].astype(str).str.lower().str.contains(station_search, na=False)
+        ]
+
+    # ---------- Stats Section ----------
+
+    st.markdown("### 📊 Filtered Data Summary")
+
+    stat_col1, stat_col2, stat_col3, stat_col4 = st.columns(4)
+
+    with stat_col1:
+        st.metric("📈 Records", f"{len(filtered_df):,}")
+
+    with stat_col2:
+        avg_delay = filtered_df["delay"].mean() if len(filtered_df) > 0 else 0
+        st.metric("⏱ Avg Delay", f"{avg_delay:.1f} min")
+
+    with stat_col3:
+        unique_trains = filtered_df["train_no"].nunique()
+        st.metric("🚆 Unique Trains", f"{unique_trains:,}")
+
+    with stat_col4:
+        unique_stations = filtered_df["station_name"].nunique()
+        st.metric("📍 Unique Stations", f"{unique_stations:,}")
+
+    st.markdown("---")
+
+    # ---------- Data Table ----------
+
+    st.markdown("### 📄 Filtered Data")
+
+    if len(filtered_df) == 0:
+        st.warning("⚠️ No records match your filters. Try adjusting the filters.")
+    else:
+        # Display only user-friendly columns
+        display_df = filtered_df.rename(columns={
+            "date": "Date",
+            "train_no": "Train #",
+            "train_name": "Train Name",
+            "station_full_name": "Station",
+            "station_name": "Code",
+            "zone_full_name": "Zone",
+            "type_code": "Type",
+            "delay": "Delay (min)"
+        })[[
+            "Date", "Train #", "Train Name",
+            "Station", "Code", "Zone", "Type", "Delay (min)"
+        ]]
+
+        st.dataframe(
+            display_df,
+            use_container_width=True,
+            hide_index=True,
+            height=500
+        )
+
+        # ---------- Download Button ----------
+
+        st.markdown("---")
+        st.markdown("### 📥 Download Filtered Data")
+
+        csv_data = display_df.to_csv(index=False).encode("utf-8")
+
+        st.download_button(
+            label="⬇️ Download CSV",
+            data=csv_data,
+            file_name="railway_filtered_data.csv",
+            mime="text/csv",
+            use_container_width=True
+        )
+
+    st.markdown("---")
+
+    st.caption(
+        "📌 Data shown is a **100,000-row random sample** from the full 7.3M+ dataset. "
+        "For full research access, use the complete dataset in the repository."
+    )
