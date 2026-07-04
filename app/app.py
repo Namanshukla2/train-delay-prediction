@@ -20,6 +20,46 @@ st.set_page_config(
     layout="wide"
 )
 
+st.markdown("""
+<style>
+
+/* Make layout fluid */
+.block-container {
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+}
+
+/* Improve mobile layout */
+@media (max-width: 768px) {
+    .stColumn {
+        flex-direction: column !important;
+    }
+    h1 {
+        font-size: 24px !important;
+    }
+    h2 {
+        font-size: 20px !important;
+    }
+    h3 {
+        font-size: 18px !important;
+    }
+}
+
+/* Smooth transitions */
+button {
+    transition: all 0.3s ease;
+}
+
+button:hover {
+    transform: scale(1.02);
+}
+
+/* Remove Streamlit watermark */
+footer {visibility: hidden;}
+#MainMenu {visibility: hidden;}
+
+</style>
+""", unsafe_allow_html=True)
 
 # ---------- Load Smart Lookup Data ----------
 
@@ -217,7 +257,7 @@ elif page == "🔮 Delay Predictor":
 
     # ---------- Predict Button ----------
 
-    if st.button("🚀 Predict Delay", use_container_width=True, type="primary"):
+    if st.button("🚀 Predict Delay", width="stretch", type="primary"):
 
         month = travel_date.month
         day = travel_date.day
@@ -377,7 +417,7 @@ elif page == "📈 Analytics":
     )
 
     fig_zone = plot_zone_delays(zone_stats)
-    st.plotly_chart(fig_zone, use_container_width=True)
+    st.plotly_chart(fig_zone, width="stretch")
 
     st.markdown("---")
 
@@ -390,7 +430,7 @@ elif page == "📈 Analytics":
     )
 
     fig_monthly = plot_monthly_trend(monthly_stats)
-    st.plotly_chart(fig_monthly, use_container_width=True)
+    st.plotly_chart(fig_monthly, width="stretch")
 
     st.markdown("---")
 
@@ -403,12 +443,12 @@ elif page == "📈 Analytics":
     with c1:
         st.write("**Average delay by train category**")
         fig_type = plot_train_type_delays(type_stats)
-        st.plotly_chart(fig_type, use_container_width=True)
+        st.plotly_chart(fig_type, width="stretch")
 
     with c2:
         st.write("**Data distribution across types**")
         fig_pie = plot_records_pie(type_stats)
-        st.plotly_chart(fig_pie, use_container_width=True)
+        st.plotly_chart(fig_pie, width="stretch")
 
     st.markdown("---")
 
@@ -423,7 +463,7 @@ elif page == "📈 Analytics":
     top_delayed_display = format_top_delayed_table(top_delayed)
     st.dataframe(
         top_delayed_display,
-        use_container_width=True,
+        width="stretch",
         hide_index=True
     )
 
@@ -553,7 +593,7 @@ elif page == "🗺️ Live Tracker":
     with col_button:
         track_button = st.button(
             "🔴 Track Live",
-            use_container_width=True,
+            width="stretch",
             type="primary"
         )
 
@@ -735,7 +775,6 @@ elif page == "🗺️ Live Tracker":
                     f"{exception.get('message', '')}"
                 )
 
-        # ---------- Live Status Cards (With Station Names) ----------
 
                # ---------- Live Status Cards (Honest Data Presentation) ----------
 
@@ -1440,7 +1479,7 @@ elif page == "📋 Data Explorer":
 
         st.dataframe(
             display_df,
-            use_container_width=True,
+            width="stretch",
             hide_index=True,
             height=500
         )
@@ -1457,7 +1496,7 @@ elif page == "📋 Data Explorer":
             data=csv_data,
             file_name="railway_filtered_data.csv",
             mime="text/csv",
-            use_container_width=True
+            width="stretch"
         )
 
     st.markdown("---")
